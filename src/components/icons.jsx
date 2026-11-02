@@ -314,3 +314,43 @@ export const CalendarIcon = (props) => (
     <path d="M3.5 10h17M8 3v4M16 3v4" />
   </Icon>
 );
+
+export const BotIcon = (props) => (
+  <Icon {...props}>
+    <rect x="4" y="8" width="16" height="12" rx="3.5" />
+    <path d="M12 8V4.5M9 14h.01M15 14h.01M2 13v3M22 13v3" />
+    <circle cx="12" cy="3.5" r="1" />
+  </Icon>
+);
+
+export const HistoryIcon = (props) => (
+  <Icon {...props}>
+    <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5M3.5 4v4.5H8" />
+    <path d="M12 7.5V12l3 2" />
+  </Icon>
+);
+
+export const MessagePlusIcon = (props) => (
+  <Icon {...props}>
+    <path d="M20 12.5V6a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 4 6v9a2.5 2.5 0 0 0 2.5 2.5H8V21l4-3.5h1.5" />
+    <path d="M18.5 15v6M15.5 18h6" />
+  </Icon>
+);
+
+export const StopIcon = (props) => (
+  <Icon {...props}>
+    <rect x="6.5" y="6.5" width="11" height="11" rx="2" />
+  </Icon>
+);
+
+export const ExpandIcon = (props) => (
+  <Icon {...props}>
+    <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />
+  </Icon>
+);
+
+export const CollapseIcon = (props) => (
+  <Icon {...props}>
+    <path d="M20 4l-7 7M13 5v6h6M4 20l7-7M11 19v-6H5" />
+  </Icon>
+);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import apiClient from "../../api/client";
 import BoardTitle from "../../components/BoardTitle.jsx";
 import { useAuth } from "../../auth/AuthContext.jsx";
@@ -100,6 +100,14 @@ export default function ResponsibleDashboardPage() {
   const storageKey = `responsible-dashboard-view:${responsibleId}`;
 
   const [view, setView] = useState(() => readStoredView(storageKey));
+
+  // A link to a view while the page is open (e.g. "#my-kpis" from the AI
+  // Assistant) switches to it. location.key: the same link twice still does.
+  const location = useLocation();
+  useEffect(() => {
+    const linkedView = HASH_VIEW[String(location.hash || "").trim().toLowerCase()];
+    if (linkedView) setView(linkedView);
+  }, [location.key, location.hash]);
 
   // Below lg the sidebar is hidden: the ☰ button opens it as a drawer. While open, the page
   // behind does not scroll; Escape, the backdrop, the close button, any action of the menu or

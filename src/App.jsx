@@ -24,6 +24,7 @@ import CorrectiveActionFormPage from "./pages/CorrectiveActions/CorrectiveAction
 import CorrectiveActionsBulkPage from "./pages/CorrectiveActions/CorrectiveActionsBulkPage.jsx";
 import KpiEntryFormPage from "./pages/Responsibles/KpiEntryFormPage.jsx";
 import ResponsibleDashboardPage from "./pages/Responsibles/ResponsibleDashboardPage.jsx";
+import AssistantWidget from "./components/assistant/AssistantWidget.jsx";
 
 // GET /responsible/:responsibleId/kpis/:kpiId/edit (index.js:24322) only ever
 // redirected to the dashboard with ?editKpi=<kpiId> to auto-open the edit
@@ -81,6 +82,8 @@ export default function App() {
               </Route>
             </Route>
           </Routes>
+          {/* The AI Assistant button, on every page. */}
+          <AssistantWidget />
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
