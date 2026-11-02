@@ -923,7 +923,7 @@ export default function ResponsibleDashboardPage() {
           className="mb-6"
           icon={DashboardIcon}
           eyebrow="KPI workspace"
-          title="Responsible KPI Dashboard"
+          title="Responsible KPI"
           subtitle={
             <>
               Modern KPI workspace for {responsibleName}. KPI creation stays linked to this
