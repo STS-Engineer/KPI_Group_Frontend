@@ -47,7 +47,7 @@ export default function App() {
 
             {/* Open pages, as before -- including every page reached from an e-mail link. */}
             <Route element={<MainLayout />}>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/form" element={<KpiEntryFormPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/dashboard-history" element={<DashboardHistoryPage />} />
