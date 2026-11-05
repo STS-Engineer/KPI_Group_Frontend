@@ -354,3 +354,13 @@ export const CollapseIcon = (props) => (
     <path d="M20 4l-7 7M13 5v6h6M4 20l7-7M11 19v-6H5" />
   </Icon>
 );
+
+// Microsoft's four-square logo, in its own colours (Microsoft sign-in branding).
+export const MicrosoftLogo = ({ size = 18, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 21 21" className={className} aria-hidden="true">
+    <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+    <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+    <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+    <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+  </svg>
+);

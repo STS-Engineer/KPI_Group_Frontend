@@ -176,6 +176,9 @@ export default function KpiIntakePage() {
   const [gridFilters, setGridFilters] = useState({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [saving, setSaving] = useState(false);
+  const [reloading, setReloading] = useState(false);
+  // Bumped by Reload: the submitted and rejected lines are read again.
+  const [reviewedVersion, setReviewedVersion] = useState(0);
   const [notice, setNotice] = useState(null);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -207,7 +210,7 @@ export default function KpiIntakePage() {
   // on the rows of the database as they are now. records: "load" them again,
   // "clear" them (signed out), or "keep" those loaded (the database only
   // changes when an administrator submits). The rows failing to load does not
-  // stop the rest of the page.
+  // stop the rest of the page; it is returned as recordsFailed.
   const refresh = useCallback(async ({ records: recordsMode = "keep" } = {}) => {
     const loadingRecords =
       recordsMode === "load"
@@ -239,6 +242,7 @@ export default function KpiIntakePage() {
         lookupData.columns.target_allocation
       ),
     }));
+    return { recordsFailed: recordsMode === "load" && !loadedRecords };
   }, []);
   const recordsMode = canSeeRecords ? "load" : "clear";
 
@@ -267,7 +271,7 @@ export default function KpiIntakePage() {
   }, [columns, entityType, lines.length, lookups, updateLines, view]);
 
   // Submitted and rejected lines, read only.
-  const reviewedKey = `${entityType}|${view}|${canSeeRecords}`;
+  const reviewedKey = `${entityType}|${view}|${canSeeRecords}|${reviewedVersion}`;
   useEffect(() => {
     if (view !== "reviewed") return undefined;
     let cancelled = false;
@@ -558,6 +562,7 @@ export default function KpiIntakePage() {
   // After a conflict: the server's version of every line and row, this page's edits dropped.
   const reloadDiscarding = async () => {
     setNotice(null);
+    setReloading(true);
     try {
       const [kpiLines, allocationLines] = await Promise.all([fetchLines("kpi"), fetchLines("target_allocation")]);
       setLinesByEntity((current) => ({
@@ -570,11 +575,32 @@ export default function KpiIntakePage() {
       await refresh({ records: recordsMode });
     } catch (error) {
       setNotice({ tone: "error", text: getApiErrorMessage(error, "Unable to reload the lines.") });
+    } finally {
+      setReloading(false);
     }
   };
 
-  const reload = () =>
-    refresh({ records: recordsMode }).catch((error) => setNotice({ tone: "error", text: getApiErrorMessage(error) }));
+  // Everything read again; Save waits meanwhile (an older answer arriving after
+  // a save would drop the lines just saved). Unsaved edits are kept.
+  const reload = async () => {
+    if (reloading) return;
+    setNotice(null);
+    setReloading(true);
+    if (view === "reviewed") setReviewedVersion((version) => version + 1);
+    try {
+      const { recordsFailed } = await refresh({ records: recordsMode });
+      if (!recordsFailed) {
+        setNotice({
+          tone: "success",
+          text: `Reloaded: the lines and the database as they are now.${unsavedCount ? " Your unsaved edits are kept." : ""}`,
+        });
+      }
+    } catch (error) {
+      setNotice({ tone: "error", text: getApiErrorMessage(error, "Unable to reload the page.") });
+    } finally {
+      setReloading(false);
+    }
+  };
 
   const chooseTab = (type) => {
     setSearchParams(
@@ -792,14 +818,20 @@ export default function KpiIntakePage() {
             type="button"
             className={buttonClasses.secondary}
             onClick={reload}
-            disabled={saving}
+            disabled={saving || reloading}
+            aria-busy={reloading}
             title="Reload the lines and the database (your unsaved edits are kept)"
           >
-            <RefreshIcon size={16} />
-            <span className="sr-only sm:not-sr-only">Reload</span>
+            {reloading ? <Spinner /> : <RefreshIcon size={16} />}
+            <span className="sr-only sm:not-sr-only">{reloading ? "Reloading…" : "Reload"}</span>
           </button>
           {!readOnly ? (
-            <button type="button" className={buttonClasses.primary} onClick={save} disabled={saving || !tabUnsaved[entityType]}>
+            <button
+              type="button"
+              className={buttonClasses.primary}
+              onClick={save}
+              disabled={saving || reloading || !tabUnsaved[entityType]}
+            >
               {saving ? <Spinner /> : <SaveIcon size={16} />}
               Save{tabUnsaved[entityType] ? ` ${plural(tabUnsaved[entityType], "line")}` : ""}
             </button>

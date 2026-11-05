@@ -16,6 +16,8 @@ const EVENT_FILTERS = [
   { value: "user.created", label: "Accounts created" },
   { value: "user.updated", label: "Accounts updated" },
   { value: "user.deleted", label: "Accounts deleted" },
+  { value: "user.microsoft_linked", label: "Microsoft accounts linked" },
+  { value: "settings.updated", label: "Settings changes" },
 ];
 
 // Security audit trail (kpi_app_auth_event), newest first.

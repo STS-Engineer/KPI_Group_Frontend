@@ -82,7 +82,7 @@ export default function App() {
               </Route>
             </Route>
           </Routes>
-          {/* The AI Assistant button, on every page. */}
+          {/* The AI Assistant button, on every page once signed in. */}
           <AssistantWidget />
         </AuthProvider>
       </ThemeProvider>

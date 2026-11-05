@@ -44,6 +44,10 @@ const EVENT_LABELS = {
   "user.temporary_password_set": "Temporary password set",
   "user.unlocked": "Account unlocked",
   "user.sessions_revoked": "Signed out of all devices",
+  "user.microsoft_linked": "Microsoft account linked",
+  "user.microsoft_unlinked": "Microsoft account unlinked",
+  "password.temporary_removed": "Temporary password removed (Microsoft sign-in)",
+  "settings.updated": "Settings changed",
   "admin.bootstrap": "Administrator created (setup script)",
 };
 
@@ -56,6 +60,23 @@ const FAILURE_REASONS = {
   rate_limited: "too many requests",
   email_error: "e-mail could not be sent",
   wrong_current_password: "wrong current password",
+  no_account: "no account and no matching person",
+  role_not_allowed: "role not allowed to create an account",
+  person_inactive: "person no longer active",
+  linked_to_other_microsoft_account: "linked to another Microsoft account",
+  microsoft_incomplete: "Microsoft returned no account details",
+};
+
+const MODE_LABELS = {
+  invitation: "invitation e-mail",
+  temporary_password: "temporary password",
+  microsoft: "first Microsoft sign-in",
+};
+
+// How someone signs in: badges of the Accounts table.
+export const SIGN_IN_METHOD_META = {
+  password: { label: "Password", tone: "slate" },
+  microsoft: { label: "Microsoft", tone: "blue" },
 };
 
 export const getEventLabel = (eventType) => EVENT_LABELS[eventType] || eventType;
@@ -63,7 +84,7 @@ export const getEventLabel = (eventType) => EVENT_LABELS[eventType] || eventType
 export const getEventTone = (eventType) => {
   if (["login.failure", "login.blocked", "account.locked", "password.change_failed"].includes(eventType)) return "red";
   if (eventType === "user.deleted") return "red";
-  if (eventType.startsWith("user.") || eventType === "admin.bootstrap") return "orange";
+  if (eventType.startsWith("user.") || eventType === "admin.bootstrap" || eventType === "settings.updated") return "orange";
   if (eventType === "login.success") return "green";
   return "slate";
 };
@@ -72,8 +93,14 @@ export const getEventTone = (eventType) => {
 export const describeEventDetails = (event) => {
   const details = event.details || {};
   const parts = [];
+  if (details.method === "microsoft") parts.push("with Microsoft");
+  if (details.account_created) parts.push("account created");
   if (details.reason) parts.push(FAILURE_REASONS[details.reason] || details.reason);
-  if (details.mode) parts.push(details.mode === "invitation" ? "invitation e-mail" : "temporary password");
+  if (details.mode) parts.push(MODE_LABELS[details.mode] || details.mode);
+  if (details.org_role_label) parts.push(`assignment: ${details.org_role_label}`);
+  if (details.auto_create_roles?.to) {
+    parts.push(`Microsoft account creation: ${details.auto_create_roles.to.join(", ") || "no role"}`);
+  }
   if (details.purpose) parts.push(details.purpose === "invite" ? "invitation" : "reset link");
   if (details.email_sent === false && !details.reason) parts.push("e-mail not sent");
   if (details.sent === true) parts.push("e-mail sent");

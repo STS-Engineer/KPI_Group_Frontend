@@ -24,10 +24,10 @@ import { stripFollowUps, toPlainText } from "./assistantMarkdown.js";
 import { getGreeting, getQuickPrompts } from "./assistantTopics.js";
 import useAssistantChat from "./useAssistantChat.js";
 
-// The AI Assistant of every page: a round button at the bottom right (AVO blue,
-// GROUP orange "AI" badge) opening a chat panel. Signed in, it answers from the
-// user's live KPI data (backend: services/appAssistant.service.js), within
-// their scope; without a session it explains the app and the KPI definitions.
+// The AI Assistant of every page, for signed-in users only: a round button at
+// the bottom right (AVO blue, GROUP orange "AI" badge) opening a chat panel. It
+// answers from the user's live KPI data (backend: services/appAssistant.service.js),
+// within their scope.
 
 const EXPANDED_STORAGE_KEY = "kpi-assistant:expanded";
 
@@ -580,7 +580,9 @@ function AssistantWidgetForAccount({ user }) {
 
 export default function AssistantWidget() {
   const { user } = useAuth();
-  // A new account (sign-in, sign-out, password set) starts a fresh chat state.
-  const accountKey = user ? `user-${user.user_id}${user.must_change_password ? "-pending" : ""}` : "guest";
-  return <AssistantWidgetForAccount key={accountKey} user={user} />;
+  // Signed-in users only: hidden on the sign-in pages, on the public pages
+  // without a session, and while a password change is still required.
+  if (!user || user.must_change_password) return null;
+  // A new account (sign-in, sign-out) starts a fresh chat state.
+  return <AssistantWidgetForAccount key={`user-${user.user_id}`} user={user} />;
 }

@@ -12,8 +12,10 @@ import {
   CloseIcon,
   EditIcon,
   KeyIcon,
+  LinkIcon,
   LogoutIcon,
   MailIcon,
+  MicrosoftLogo,
   MoreIcon,
   ShieldIcon,
   TrashIcon,
@@ -23,9 +25,10 @@ import {
 import { EmptyState, StatTile, StatusPill } from "../Responsibles/components/ui.jsx";
 import ActivityLog from "./components/ActivityLog";
 import KpiChangeLog from "./components/KpiChangeLog";
+import MicrosoftSignInSettings from "./components/MicrosoftSignInSettings";
 import UserFormModal from "./components/UserFormModal";
 import { ManualLinkModal, TemporaryPasswordModal } from "./components/UserActionModals";
-import { TONE_DOT, USER_STATUS_META, formatDateTime } from "./components/adminUi";
+import { SIGN_IN_METHOD_META, TONE_DOT, USER_STATUS_META, formatDateTime } from "./components/adminUi";
 import { PeopleIdBadge } from "./components/formUi";
 import { ROLE_META, getRoleMeta } from "../../constants/userRoles";
 import SelectMenu from "../../components/SelectMenu.jsx";
@@ -40,6 +43,40 @@ const STATUS_FILTER_OPTIONS = [
   { value: "", label: "All statuses" },
   ...Object.entries(USER_STATUS_META).map(([value, meta]) => ({ value, label: meta.label, dot: TONE_DOT[meta.tone] })),
 ];
+// How the accounts sign in, and the ones a first Microsoft sign-in created.
+const SIGN_IN_FILTER_OPTIONS = [
+  { value: "", label: "All sign-in methods" },
+  { value: "microsoft", label: "Microsoft", dot: TONE_DOT[SIGN_IN_METHOD_META.microsoft.tone] },
+  { value: "password", label: "Password", dot: TONE_DOT[SIGN_IN_METHOD_META.password.tone] },
+  { value: "created_microsoft", label: "Created by Microsoft sign-in", dot: TONE_DOT.navy },
+];
+const matchesSignInFilter = (user, filter) => {
+  if (filter === "microsoft") return user.has_microsoft;
+  if (filter === "password") return user.has_password;
+  if (filter === "created_microsoft") return user.created_via === "microsoft";
+  return true;
+};
+
+// The ways an account can sign in today, as badges.
+function SignInMethods({ user }) {
+  if (!user.has_microsoft && !user.has_password) {
+    return <span className="text-xs text-slate-400 dark:text-slate-500">Not yet</span>;
+  }
+  return (
+    <span className="flex flex-wrap gap-1.5">
+      {user.has_microsoft ? (
+        <StatusPill tone={SIGN_IN_METHOD_META.microsoft.tone}>
+          <span className="inline-flex items-center gap-1">
+            <MicrosoftLogo size={10} /> {SIGN_IN_METHOD_META.microsoft.label}
+          </span>
+        </StatusPill>
+      ) : null}
+      {user.has_password ? (
+        <StatusPill tone={SIGN_IN_METHOD_META.password.tone}>{SIGN_IN_METHOD_META.password.label}</StatusPill>
+      ) : null}
+    </span>
+  );
+}
 
 const primaryButtonClass =
   "inline-flex items-center gap-2 rounded-xl btn-brand px-4 py-2.5 text-sm font-bold shadow-md shadow-blue-500/20 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 dark:shadow-none dark:focus-visible:ring-blue-500/30";
@@ -123,10 +160,25 @@ function RowActions({ user, isSelf, onAction }) {
           items: [
             user.is_active
               ? item("password-link", {
-                  label: user.has_password ? "Send a reset link" : "Resend the invitation",
-                  description: user.has_password ? "E-mail valid 60 minutes" : "E-mail valid 72 hours",
+                  label: user.has_password
+                    ? "Send a reset link"
+                    : user.has_microsoft
+                      ? "Send a password link"
+                      : "Resend the invitation",
+                  description: user.has_password
+                    ? "E-mail valid 60 minutes"
+                    : user.has_microsoft
+                      ? "To also sign in with a password · valid 60 minutes"
+                      : "E-mail valid 72 hours",
                   icon: MailIcon,
                   tone: "brand",
+                })
+              : null,
+            user.has_microsoft
+              ? item("unlink-microsoft", {
+                  label: "Unlink the Microsoft account",
+                  description: "Linked again at the next Microsoft sign-in",
+                  icon: LinkIcon,
                 })
               : null,
             !isSelf
@@ -189,6 +241,7 @@ export default function UserManagementPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [signInFilter, setSignInFilter] = useState("");
   const [activityUserFilter, setActivityUserFilter] = useState("");
   const [activityRefreshKey, setActivityRefreshKey] = useState(0);
 
@@ -261,6 +314,19 @@ export default function UserManagementPage() {
       case "unlock":
         runAction(() => apiClient.post(`${base}/unlock`), `${user.email} can sign in again.`);
         break;
+      case "unlink-microsoft":
+        setPendingConfirm({
+          tone: "warning",
+          icon: LinkIcon,
+          title: "Unlink the Microsoft account?",
+          description: `${user.full_name} (${user.email}) is no longer tied to the Microsoft account it was linked to.`,
+          details:
+            "Use it when their Microsoft account was replaced: the next \"Continue with Microsoft\" with this e-mail links the new one. Their sessions and password are not changed.",
+          confirmLabel: "Unlink",
+          run: () =>
+            runAction(() => apiClient.post(`${base}/unlink-microsoft`), `${user.email} is no longer linked to a Microsoft account.`),
+        });
+        break;
       case "revoke-sessions":
         setPendingConfirm({
           tone: "brand",
@@ -320,9 +386,10 @@ export default function UserManagementPage() {
           user.full_name.toLowerCase().includes(term) ||
           String(user.person?.full_name || "").toLowerCase().includes(term)) &&
         (!roleFilter || user.role === roleFilter) &&
-        (!statusFilter || user.status === statusFilter)
+        (!statusFilter || user.status === statusFilter) &&
+        matchesSignInFilter(user, signInFilter)
     );
-  }, [users, search, roleFilter, statusFilter]);
+  }, [users, search, roleFilter, statusFilter, signInFilter]);
 
   const stats = useMemo(
     () => ({
@@ -330,6 +397,7 @@ export default function UserManagementPage() {
       active: users.filter((user) => user.status === "active").length,
       admins: users.filter((user) => user.role === "admin" && user.is_active).length,
       invited: users.filter((user) => user.status === "invited").length,
+      microsoft: users.filter((user) => user.created_via === "microsoft").length,
       attention: users.filter((user) => user.status === "locked" || user.status === "disabled").length,
     }),
     [users]
@@ -358,11 +426,12 @@ export default function UserManagementPage() {
 
       <Notice notice={notice} onDismiss={() => setNotice(null)} />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <StatTile label="Accounts" value={stats.total} />
         <StatTile label="Active" value={stats.active} tone="green" />
         <StatTile label="Administrators" value={stats.admins} tone="orange" />
         <StatTile label="Invitations pending" value={stats.invited} tone="blue" />
+        <StatTile label="Created via Microsoft" value={stats.microsoft} tone={stats.microsoft ? "navy" : "muted"} />
         <StatTile label="Locked or disabled" value={stats.attention} tone={stats.attention ? "red" : "muted"} />
       </div>
 
@@ -376,9 +445,14 @@ export default function UserManagementPage() {
         <button type="button" className={tabClass("kpi-audit")} onClick={() => setTab("kpi-audit")}>
           KPI audit trail
         </button>
+        <button type="button" className={tabClass("microsoft")} onClick={() => setTab("microsoft")}>
+          Microsoft sign-in
+        </button>
       </div>
 
-      {tab === "kpi-audit" ? (
+      {tab === "microsoft" ? (
+        <MicrosoftSignInSettings onSaved={() => setActivityRefreshKey((key) => key + 1)} />
+      ) : tab === "kpi-audit" ? (
         <KpiChangeLog />
       ) : tab === "activity" ? (
         <ActivityLog
@@ -413,12 +487,21 @@ export default function UserManagementPage() {
               onChange={setStatusFilter}
               active={Boolean(statusFilter)}
             />
-            {search || roleFilter || statusFilter ? (
+            <SelectMenu
+              icon={KeyIcon}
+              label="Sign-in"
+              value={signInFilter}
+              options={SIGN_IN_FILTER_OPTIONS}
+              onChange={setSignInFilter}
+              active={Boolean(signInFilter)}
+            />
+            {search || roleFilter || statusFilter || signInFilter ? (
               <ClearFiltersButton
                 onClick={() => {
                   setSearch("");
                   setRoleFilter("");
                   setStatusFilter("");
+                  setSignInFilter("");
                 }}
               />
             ) : null}
@@ -445,6 +528,7 @@ export default function UserManagementPage() {
                     <th className="px-5 py-2.5">Account</th>
                     <th className="px-5 py-2.5">Role</th>
                     <th className="px-5 py-2.5">Status</th>
+                    <th className="px-5 py-2.5">Sign-in</th>
                     <th className="px-5 py-2.5">Last sign-in</th>
                     <th className="px-5 py-2.5">Sessions</th>
                     <th className="px-5 py-2.5">Linked person</th>
@@ -471,6 +555,15 @@ export default function UserManagementPage() {
                         </td>
                         <td className="px-5 py-3">
                           <StatusPill tone={getRoleMeta(user.role).tone}>{getRoleMeta(user.role).label}</StatusPill>
+                          {/* The role is set once; this shows when the person's assignments now say otherwise. */}
+                          {user.org_role && user.role !== "admin" && user.org_role.role !== user.role ? (
+                            <div
+                              className="mt-1 whitespace-nowrap text-xs text-slate-400 dark:text-slate-500"
+                              title={user.org_role.label ? `Assignment: ${user.org_role.label}` : "No active assignment"}
+                            >
+                              Assignments: {getRoleMeta(user.org_role.role).label}
+                            </div>
+                          ) : null}
                         </td>
                         <td className="px-5 py-3">
                           <StatusPill tone={statusMeta.tone}>{statusMeta.label}</StatusPill>
@@ -478,7 +571,20 @@ export default function UserManagementPage() {
                             <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">until {formatDateTime(user.locked_until)}</div>
                           ) : null}
                         </td>
-                        <td className="whitespace-nowrap px-5 py-3 text-slate-500 dark:text-slate-400">{formatDateTime(user.last_login_at)}</td>
+                        <td className="px-5 py-3">
+                          <SignInMethods user={user} />
+                          {user.created_via === "microsoft" ? (
+                            <div className="mt-1 whitespace-nowrap text-xs text-slate-400 dark:text-slate-500">Created by Microsoft sign-in</div>
+                          ) : null}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-3 text-slate-500 dark:text-slate-400">
+                          {formatDateTime(user.last_login_at)}
+                          {user.last_login_at && user.last_login_method ? (
+                            <div className="text-xs text-slate-400 dark:text-slate-500">
+                              with {user.last_login_method === "microsoft" ? "Microsoft" : "password"}
+                            </div>
+                          ) : null}
+                        </td>
                         <td className="px-5 py-3 tabular-nums text-slate-500 dark:text-slate-400">{user.active_sessions}</td>
                         <td className="px-5 py-3 text-slate-500 dark:text-slate-400">
                           {user.person ? (
