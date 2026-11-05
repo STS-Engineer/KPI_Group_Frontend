@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createSseParser, streamAssistantChat } from "../src/components/assistant/assistantStream.js";
+import { joinApiUrl } from "../src/api/apiUrl.js";
 import {
   parseInline,
   parseMarkdown,
@@ -60,6 +61,24 @@ test("the stream is read to the end and sends the session cookie", async () => {
   assert.equal(request.options.credentials, "include");
   assert.deepEqual(JSON.parse(request.options.body), { message: "Hi" });
   assert.deepEqual(events, ["delta", "done"]);
+});
+
+test("the chat URL works with a same-origin API base (\"/\") and a full one", async () => {
+  const urls = [];
+  const fetchImpl = async (url) => {
+    urls.push(url);
+    return { ok: false, status: 500, json: async () => ({}) };
+  };
+  for (const baseURL of ["/", "", "http://localhost:5001", "http://localhost:5001/"]) {
+    await assert.rejects(streamAssistantChat({ baseURL, body: {}, onEvent: () => {}, fetchImpl }));
+  }
+  assert.deepEqual(urls, [
+    "/api/assistant/chat",
+    "/api/assistant/chat",
+    "http://localhost:5001/api/assistant/chat",
+    "http://localhost:5001/api/assistant/chat",
+  ]);
+  assert.equal(joinApiUrl("/", "/api/auth/microsoft/login"), "/api/auth/microsoft/login");
 });
 
 // ---------------------------------------------------------------------------

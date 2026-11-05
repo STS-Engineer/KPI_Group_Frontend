@@ -1,3 +1,5 @@
+import { joinApiUrl } from "../../api/apiUrl.js";
+
 // Client of POST /api/assistant/chat, which answers with Server-Sent Events:
 // `tool` (a data lookup starts / ends), `delta` (text), then `done` or `error`.
 // fetch, not axios: axios cannot read a response while it streams in the browser.
@@ -47,7 +49,7 @@ export function createSseParser(onEvent) {
 }
 
 export async function streamAssistantChat({ baseURL, body, signal, onEvent, fetchImpl = globalThis.fetch }) {
-  const response = await fetchImpl(`${baseURL}/api/assistant/chat`, {
+  const response = await fetchImpl(joinApiUrl(baseURL, "/api/assistant/chat"), {
     method: "POST",
     // Sends the session cookie: signed-in users get their own KPI data.
     credentials: "include",

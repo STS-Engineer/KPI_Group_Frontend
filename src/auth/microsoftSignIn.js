@@ -1,3 +1,4 @@
+import { joinApiUrl } from "../api/apiUrl";
 import apiClient from "../api/client";
 
 // "Continue with Microsoft": the sign-in runs in a popup on Microsoft's
@@ -15,7 +16,7 @@ const POPUP_HEIGHT = 680;
 export function getMicrosoftSignInUrl(next) {
   const query = new URLSearchParams({ origin: window.location.origin });
   if (next) query.set("next", next);
-  return `${apiClient.defaults.baseURL}/api/auth/microsoft/login?${query}`;
+  return `${joinApiUrl(apiClient.defaults.baseURL, "/api/auth/microsoft/login")}?${query}`;
 }
 
 // Resolves with { ok, error, detail } -- error "closed" when the popup was
